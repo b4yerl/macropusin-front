@@ -1,6 +1,7 @@
 import axios from 'axios';
 import "../styles/ItemsList.css"
 import React, { useEffect, useState } from 'react';
+import moment from 'moment';
 
 export default function Disposal() {
   const [items, setItems] = useState([]);
@@ -10,19 +11,31 @@ export default function Disposal() {
     motivo: '',
     preco: '',
     precoVenda: '',
-    dataCompra: ''
+    dataCompra: '',
+    dataDescarte: ''
   });
+
+  async function fetchData() {
+    const response = await axios.get("http://localhost:3333/itens");
+    setItems(response.data);
+  }
+
   useEffect(() => {
-    async function fetchData() {
-      const response = await axios.get("http://localhost:3333/itens");
-      setItems(response.data);
+    try {
+      fetchData();
     }
-    fetchData();
+    catch(err) {
+      console.error(err)
+    }
   }, [])
 
   const handleDelete = async (id) => {
+    try {
       await axios.delete(`http://localhost:3333/itens/${id}`);
       setItems(items.filter(item => item.id !== id));
+    } catch(err) {
+      console.error(err)
+    }
   };
 
   const handleInputChange = (e) => {
@@ -34,18 +47,52 @@ export default function Disposal() {
   };
 
   const handleFormSubmit = async (e) => {
-    e.preventDefault();
-    const today = new Date();
-    const finalForm = { ...formData, dataDescarte: today, dataCompra: new Date(formData.dataCompra) };
-    const response = await axios.post('http://localhost:3333/itens', finalForm);
-    window.location.reload();
+    try {
+      e.preventDefault();
+      const today = new Date();
+      const finalForm = { ...formData, dataDescarte: today, dataCompra: new Date(formData.dataCompra) };
+      await axios.post('http://localhost:3333/itens', finalForm);
+      fetchData()
+      setIsModalOpen(false)
+    } catch(err) {
+      console.error(err);
+    }
+  }
+
+  const downloadCSV = (csv, filename) => {
+    const csvFile = new Blob([csv], { type: 'text/csv' });
+    const downloadLink = document.createElement('a');
+    downloadLink.download = filename;
+    downloadLink.href = window.URL.createObjectURL(csvFile);
+    downloadLink.style.display = 'none';
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    downloadLink.remove();
+  }
+
+  const  generateCsv = async () => {
+    const filename = 'descarte-' + moment().format('YYYY-MM-DDHHmmss') + '.csv';
+    const csv = [];
+    for (let i = 0; i < items.length; i++) {
+      const headers = [];
+      const row = [];
+      const cols = items[i];
+      for (let key in cols) {
+        if (key === '_id') continue;
+        row.push(cols[key]);
+        if (i===0) { headers.push(key); }
+      }
+      if(i===0) { csv.push(headers.join(';')); }
+      csv.push(row.join(';'));
+    }
+    downloadCSV(csv.join('\n'), filename);
   }
   
   return (
     <div className='container'>
       <div className='tabs'>
         <button className='tabBtn' onClick={() => setIsModalOpen(true)}>Cadastrar novo descarte</button>
-        <button className='tabBtn'>Gerar CSV</button>
+        <button className='tabBtn' onClick={() => generateCsv()}>Gerar CSV</button>
       </div>
       <div className='tableContainer'>
         <table>
@@ -53,7 +100,7 @@ export default function Disposal() {
             <tr>
               <th>Item</th>
               <th>Motivo</th>
-              <th>Data</th>
+              <th>Data do Descarte</th>
               <th></th>
             </tr>
           </thead>
@@ -62,9 +109,9 @@ export default function Disposal() {
               <tr key={item.id}>
                 <td>{item.nome}</td>
                 <td>{item.motivo}</td>
-                <td>{new Date(item.dataDescarte).toLocaleDateString()}</td>
+                <td>{moment(item.dataDescarte).format('DD-MM-YYYY')}</td>
                 <td>
-                  <button className='deleteBtn' onClick={() => handleDelete(item.id)}>Delete</button>
+                  <button className='deleteBtn' onClick={() => handleDelete(item._id)}>Delete</button>
                 </td>
               </tr>
             ))}
@@ -76,6 +123,7 @@ export default function Disposal() {
           <div className="modalContent">
             <h2>Novo Descarte</h2>
             <form onSubmit={handleFormSubmit}>
+              <label htmlFor="nome">Nome</label>
               <input
                 type="text"
                 name="nome"
@@ -84,6 +132,7 @@ export default function Disposal() {
                 onChange={handleInputChange}
                 required
               />
+              <label htmlFor="motivo">Motivo</label>
               <input
                 type="text"
                 name="motivo"
@@ -92,6 +141,7 @@ export default function Disposal() {
                 onChange={handleInputChange}
                 required
               />
+              <label htmlFor="preco">Preço</label>
               <input
                 type="number"
                 name="preco"
@@ -100,6 +150,7 @@ export default function Disposal() {
                 onChange={handleInputChange}
                 required
               />
+              <label htmlFor="precoVenda">Preço da venda</label>
               <input
                 type="number"
                 name="precoVenda"
@@ -108,11 +159,21 @@ export default function Disposal() {
                 onChange={handleInputChange}
                 required
               />
+              <label htmlFor="dataCompra">Data da compra</label>
               <input
                 type="date"
                 name="dataCompra"
                 placeholder='Data de Aquisição'
                 value={formData.dataCompra}
+                onChange={handleInputChange}
+                required
+              />
+              <label htmlFor="dataCompra">Data da venda</label>
+              <input
+                type="date"
+                name="dataVenda"
+                placeholder='Data de Aquisição'
+                value={formData.dataVenda}
                 onChange={handleInputChange}
                 required
               />
