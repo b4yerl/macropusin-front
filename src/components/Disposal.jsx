@@ -1,5 +1,5 @@
 import axios from 'axios';
-import "../styles/ItemsList.css"
+import "../styles/ItemsList.css";
 import React, { useEffect, useState } from 'react';
 import moment from 'moment';
 
@@ -12,52 +12,70 @@ export default function Disposal() {
     preco: '',
     precoVenda: '',
     dataCompra: '',
-    dataDescarte: ''
+    dataDescarte: '',
+    dataVenda: ''
   });
 
   async function fetchData() {
-    const response = await axios.get("http://localhost:3333/itens");
-    setItems(response.data);
+    try {
+      const response = await axios.get("http://localhost:3333/itens");
+      setItems(response.data);
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   useEffect(() => {
-    try {
-      fetchData();
-    }
-    catch(err) {
-      console.error(err)
-    }
-  }, [])
+    fetchData();
+  }, []);
 
   const handleDelete = async (id) => {
     try {
       await axios.delete(`http://localhost:3333/itens/${id}`);
-      setItems(items.filter(item => item.id !== id));
-    } catch(err) {
-      console.error(err)
+      setItems(items.filter(item => item._id !== id));
+    } catch (err) {
+      console.error(err);
     }
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: value
-    });
+
+    if (name === 'preco' || name === 'precoVenda') {
+      const regex = /^[0-9]*,?[0-9]*$/;
+      if (regex.test(value)) {
+        setFormData({
+          ...formData,
+          [name]: value
+        });
+      }
+    } else {
+      setFormData({
+        ...formData,
+        [name]: value
+      });
+    }
   };
 
   const handleFormSubmit = async (e) => {
+    e.preventDefault();
     try {
-      e.preventDefault();
       const today = new Date();
-      const finalForm = { ...formData, dataDescarte: today, dataCompra: new Date(formData.dataCompra) };
+      const finalForm = { 
+        ...formData, 
+        preco: Number(formData.preco.replace(/[^0-9,-]+/g,"").replace(',', '.')), 
+        precoVenda: Number(formData.precoVenda.replace(/[^0-9,-]+/g,"").replace(',', '.')),
+        dataDescarte: today, 
+        dataCompra: new Date(formData.dataCompra),
+        dataVenda: new Date(formData.dataVenda)
+      };
       await axios.post('http://localhost:3333/itens', finalForm);
-      fetchData()
-      setIsModalOpen(false)
-    } catch(err) {
+      fetchData();
+      setIsModalOpen(false);
+    } catch (err) {
       console.error(err);
     }
-  }
+  };
 
   const downloadCSV = (csv, filename) => {
     const csvFile = new Blob([csv], { type: 'text/csv' });
@@ -68,10 +86,10 @@ export default function Disposal() {
     document.body.appendChild(downloadLink);
     downloadLink.click();
     downloadLink.remove();
-  }
+  };
 
-  const  generateCsv = async () => {
-    const filename = 'descarte-' + moment().format('YYYY-MM-DDHHmmss') + '.csv';
+  const generateCsv = async () => {
+    const filename = 'descarte-' + moment().format('YYYY-MM-DD-HH:mm:ss') + '.csv';
     const csv = [];
     for (let i = 0; i < items.length; i++) {
       const headers = [];
@@ -80,38 +98,39 @@ export default function Disposal() {
       for (let key in cols) {
         if (key === '_id') continue;
         row.push(cols[key]);
-        if (i===0) { headers.push(key); }
+        if (i === 0) { headers.push(key); }
       }
-      if(i===0) { csv.push(headers.join(';')); }
+      if (i === 0) { csv.push(headers.join(';')); }
       csv.push(row.join(';'));
     }
     downloadCSV(csv.join('\n'), filename);
-  }
-  
+  };
+
   return (
     <div className='container'>
-      <div className='tabs'>
-        <button className='tabBtn' onClick={() => setIsModalOpen(true)}>Cadastrar novo descarte</button>
-        <button className='tabBtn' onClick={() => generateCsv()}>Gerar CSV</button>
-      </div>
+      
       <div className='tableContainer'>
+        <div className='tabs'>
+          <button className='tabBtn' onClick={() => setIsModalOpen(true)}>Cadastrar novo descarte</button>
+          <button className='tabBtn' onClick={() => generateCsv()}>Gerar CSV</button>
+        </div>
         <table>
           <thead>
             <tr>
               <th>Item</th>
               <th>Motivo</th>
               <th>Data do Descarte</th>
-              <th></th>
+              <th>Ações</th>
             </tr>
           </thead>
           <tbody>
             {items.map((item) => (
-              <tr key={item.id}>
+              <tr key={item._id}>
                 <td>{item.nome}</td>
                 <td>{item.motivo}</td>
                 <td>{moment(item.dataDescarte).format('DD-MM-YYYY')}</td>
                 <td>
-                  <button className='deleteBtn' onClick={() => handleDelete(item._id)}>Delete</button>
+                  <button className='deleteBtn' onClick={() => handleDelete(item._id)}>Deletar</button>
                 </td>
               </tr>
             ))}
@@ -143,7 +162,7 @@ export default function Disposal() {
               />
               <label htmlFor="preco">Preço</label>
               <input
-                type="number"
+                type="text"
                 name="preco"
                 placeholder="Preço"
                 value={formData.preco}
@@ -152,7 +171,7 @@ export default function Disposal() {
               />
               <label htmlFor="precoVenda">Preço da venda</label>
               <input
-                type="number"
+                type="text"
                 name="precoVenda"
                 placeholder="Preço de Venda"
                 value={formData.precoVenda}
@@ -168,11 +187,11 @@ export default function Disposal() {
                 onChange={handleInputChange}
                 required
               />
-              <label htmlFor="dataCompra">Data da venda</label>
+              <label htmlFor="dataVenda">Data da venda</label>
               <input
                 type="date"
                 name="dataVenda"
-                placeholder='Data de Aquisição'
+                placeholder='Data de Venda'
                 value={formData.dataVenda}
                 onChange={handleInputChange}
                 required
@@ -184,5 +203,5 @@ export default function Disposal() {
         </div>
       )}
     </div>
-  )
+  );
 }
