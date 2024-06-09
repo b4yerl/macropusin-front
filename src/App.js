@@ -8,6 +8,9 @@ function App() {
         <p>MacropusIn</p>
       </header>
       <Disposal />
+      <footer className='App-footer'>
+        <p>PUC Minas 2024</p>
+      </footer>
     </div>
   );
 }

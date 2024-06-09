@@ -70,9 +70,9 @@ th {
 
 .modalContent {
   background-color: white;
-  padding: 20px;
+  padding: 50px;
   border-radius: 8px;
-  width: 300px;
+  width: 350px;
 }
 
 .modalContent h2 {
